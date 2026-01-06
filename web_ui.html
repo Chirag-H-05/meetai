@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Analysis Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .upload-section {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .upload-zone {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 50px;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-zone:hover {
+            background: #eef1ff;
+            border-color: #764ba2;
+        }
+
+        .upload-zone.dragging {
+            background: #e0e7ff;
+            border-color: #4f46e5;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .progress-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .progress-bar-container {
+            background: #e0e0e0;
+            border-radius: 10px;
+            height: 30px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .status-message {
+            text-align: center;
+            color: #666;
+            font-size: 1.1em;
+            margin-top: 10px;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            color: #333;
+            font-weight: bold;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .reports-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .report-link {
+            display: block;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9ff;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #667eea;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .report-link:hover {
+            background: #eef1ff;
+            transform: translateX(5px);
+        }
+
+        .error {
+            background: #fee;
+            border: 2px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .success {
+            background: #efe;
+            border: 2px solid #cfc;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎙️ Audio Analysis Dashboard</h1>
+            <p>AI-Powered Meeting Analysis with Speaker Diarization</p>
+        </div>
+
+        <div class="upload-section">
+            <h2>Upload Audio File</h2>
+            <div class="upload-zone" id="uploadZone">
+                <p style="font-size: 3em; margin-bottom: 10px;">📁</p>
+                <p style="font-size: 1.2em; color: #667eea;">Click to select or drag & drop audio file</p>
+                <p style="color: #999; margin-top: 10px;">Supported: MP3, WAV, M4A</p>
+            </div>
+            <input type="file" id="fileInput" class="file-input" accept=".mp3,.wav,.m4a">
+            <button class="btn" id="analyzeBtn" disabled>Start Analysis</button>
+        </div>
+
+        <div class="progress-section" id="progressSection">
+            <h3>Analysis Progress</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar">0%</div>
+            </div>
+            <div class="status-message" id="statusMessage">Initializing...</div>
+            <div class="spinner" id="spinner"></div>
+        </div>
+
+        <div id="resultsSection" style="display: none;">
+            <div class="dashboard">
+                <div class="card">
+                    <h3>📊 Overview</h3>
+                    <div class="metric">
+                        <span class="metric-label">Duration</span>
+                        <span class="metric-value" id="duration">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Speakers</span>
+                        <span class="metric-value" id="speakers">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Word Count</span>
+                        <span class="metric-value" id="wordCount">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Language</span>
+                        <span class="metric-value" id="language">-</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>🎯 Analysis Status</h3>
+                    <div id="analysisStatus"></div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3 style="color: #667eea; margin-bottom: 20px;">Speaker Participation Analysis</h3>
+                <canvas id="radarChart" width="400" height="300"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3 style="color: #667eea; margin-bottom: 20px;">Speaker Word Distribution</h3>
+                <canvas id="barChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="reports-section">
+                <h3 style="color: #667eea; margin-bottom: 20px;">📄 Generated Reports</h3>
+                <div id="reportsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let selectedFile = null;
+        let uploadedFilename = null;
+        let statusCheckInterval = null;
+
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragging');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragging');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragging');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        async function handleFileSelect(file) {
+            const validTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/x-m4a'];
+            if (!validTypes.includes(file.type) && !file.name.match(/\.(mp3|wav|m4a)$/i)) {
+                alert('Please select a valid audio file (MP3, WAV, or M4A)');
+                return;
+            }
+
+            selectedFile = file;
+            uploadZone.innerHTML = `
+                <p style="font-size: 2em; margin-bottom: 10px;">⏳</p>
+                <p style="font-size: 1.1em; color: #667eea;">Uploading ${file.name}...</p>
+            `;
+
+            // Upload file
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    uploadedFilename = result.filename;
+                    uploadZone.innerHTML = `
+                        <p style="font-size: 2em; margin-bottom: 10px;">✅</p>
+                        <p style="font-size: 1.1em; color: #667eea;">${file.name}</p>
+                        <p style="color: #999; margin-top: 5px;">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    `;
+                    analyzeBtn.disabled = false;
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+            } catch (error) {
+                uploadZone.innerHTML = `
+                    <p style="font-size: 2em; margin-bottom: 10px;">❌</p>
+                    <p style="color: #c33;">Upload failed: ${error.message}</p>
+                `;
+            }
+        }
+
+        analyzeBtn.addEventListener('click', startAnalysis);
+
+        async function startAnalysis() {
+            if (!uploadedFilename) return;
+
+            document.getElementById('progressSection').style.display = 'block';
+            analyzeBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        audio_file: uploadedFilename
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Start polling for status
+                    statusCheckInterval = setInterval(checkStatus, 2000);
+                } else {
+                    throw new Error(result.error || 'Analysis failed to start');
+                }
+            } catch (error) {
+                document.getElementById('statusMessage').textContent = `Error: ${error.message}`;
+                document.getElementById('spinner').style.display = 'none';
+            }
+        }
+
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                const status = await response.json();
+
+                updateProgress(status.progress, status.message);
+
+                if (status.stage === 'complete') {
+                    clearInterval(statusCheckInterval);
+                    await loadResults();
+                } else if (status.stage === 'failed') {
+                    clearInterval(statusCheckInterval);
+                    document.getElementById('statusMessage').textContent = 'Analysis failed';
+                    document.getElementById('spinner').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Status check failed:', error);
+            }
+        }
+
+        function updateProgress(progress, message) {
+            const progressBar = document.getElementById('progressBar');
+            const statusMessage = document.getElementById('statusMessage');
+
+            progressBar.style.width = progress + '%';
+            progressBar.textContent = progress + '%';
+            statusMessage.textContent = message;
+        }
+
+        async function loadResults() {
+            try {
+                const response = await fetch(`${API_BASE}/results`);
+                const data = await response.json();
+
+                document.getElementById('spinner').style.display = 'none';
+                document.getElementById('progressSection').style.display = 'none';
+                document.getElementById('resultsSection').style.display = 'block';
+
+                displayResults(data);
+            } catch (error) {
+                console.error('Failed to load results:', error);
+            }
+        }
+
+        async function displayResults(data) {
+            // Update metrics
+            document.getElementById('duration').textContent = formatDuration(data.metadata.total_duration);
+            document.getElementById('speakers').textContent = data.metadata.num_speakers;
+            document.getElementById('wordCount').textContent = data.metadata.word_count.toLocaleString();
+            document.getElementById('language').textContent = data.metadata.language.toUpperCase();
+
+            // Create charts
+            createRadarChart(data.speaker_stats);
+            createBarChart(data.speaker_stats);
+
+            // Load reports list
+            const reportsResponse = await fetch(`${API_BASE}/reports/list`);
+            const reports = await reportsResponse.json();
+
+            const reportsList = document.getElementById('reportsList');
+            reports.forEach(report => {
+                const link = document.createElement('a');
+                link.href = `http://localhost:5000${report.url}`;
+                link.className = 'report-link';
+                link.textContent = `📄 ${report.name}`;
+                link.target = '_blank';
+                reportsList.appendChild(link);
+            });
+
+            const statusDiv = document.getElementById('analysisStatus');
+            statusDiv.innerHTML = '<div class="success">✅ All analyses completed successfully</div>';
+        }
+
+        function createRadarChart(speakerStats) {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            const speakers = Object.keys(speakerStats);
+            
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Segments', 'Words', 'Avg Words/Segment', 'Participation'],
+                    datasets: speakers.map((speaker, idx) => {
+                        const stats = speakerStats[speaker];
+                        const avgWords = stats.words / stats.segments;
+                        const totalSegments = Object.values(speakerStats).reduce((sum, s) => sum + s.segments, 0);
+                        const participation = (stats.segments / totalSegments) * 100;
+
+                        const colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe'];
+                        
+                        return {
+                            label: speaker,
+                            data: [
+                                (stats.segments / 200) * 100,
+                                (stats.words / 5000) * 100,
+                                (avgWords / 50) * 100,
+                                participation
+                            ],
+                            backgroundColor: colors[idx] + '33',
+                            borderColor: colors[idx],
+                            borderWidth: 2
+                        };
+                    })
+                },
+                options: {
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        function createBarChart(speakerStats) {
+            const ctx = document.getElementById('barChart').getContext('2d');
+            const speakers = Object.keys(speakerStats);
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: speakers,
+                    datasets: [{
+                        label: 'Total Words',
+                        data: speakers.map(s => speakerStats[s].words),
+                        backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function formatDuration(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}m ${secs}s`;
+        }
+    </script>
+</body>
+</html>
